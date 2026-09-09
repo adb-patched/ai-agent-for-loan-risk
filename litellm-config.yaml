@@ -1,0 +1,6 @@
+model_list:
+  - model_name: loan-risk-bedrock
+    litellm_params:
+      model: bedrock/amazon.nova-pro-v1:0
+      api_key: os.environ/AWS_BEARER_TOKEN_BEDROCK
+      aws_region_name: os.environ/AWS_REGION_NAME

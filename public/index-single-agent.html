@@ -12,7 +12,7 @@
 <div id="maindiv" class="maindiv">
     <div class="top-container">
         <div class="top">
-            Loan Risk - AI Agent <span style="font-size: 16px;font-family:"> (on IBM Cloud) </style></span>
+            Loan Risk - AI Agent <span style="font-size: 16px;font-family:"> (LiteLLM + Amazon Bedrock) </style></span>
         </div>
     </div>
     <div class="middle-container">
@@ -144,6 +144,7 @@ function makePOSTAPIcall(data_to_post, success_actioncode, error_actioncode) {
                     url : full_url,
                     type: "POST",
                     data : data_to_post,
+                    timeout: 60000,
                     headers: { "Content-type": "application/json"},
                     success: function(data, textStatus, jqXHR)
                     {
@@ -204,7 +205,7 @@ function handleError(jqXHR, funcType, nextactioncode){
                 //do any other housekeeping due to failed request
                 // this can depend on the values of nextactioncode jqXHR.readyState jqXHR.status jqXHR.statusText etc.
 
-		if (nextactioncode ="notifyUI") {
+		if (nextactioncode === "notifyUI") {
 		        //update UI
 		        //document.getElementById('p_response').innerHTML=rMsg;
                         //status_display_obj.textContent = rMsg_status;
@@ -243,7 +244,7 @@ function handleSuccess(jqXHR, funcType, nextactioncode){
                 //rMsg = rMsg + "<br>jqXHR:" + JSON.stringify(jqXHR);
                 //do any other housekeeping due to succesful request
                 // this can depend on the values of nextactioncode jqXHR.readyState jqXHR.status jqXHR.statusText etc.
-                if (nextactioncode ="notifyUI") {
+                if (nextactioncode === "notifyUI") {
                         //update UI
 
                         //document.getElementById('p_response').innerHTML=rMsg;
@@ -253,12 +254,17 @@ function handleSuccess(jqXHR, funcType, nextactioncode){
                         //display_obj.textContent = rMsg
 			display_obj.value = JSON.stringify(JSON.parse(rMsg), undefined, 4);	
 
-			//final_message= JSON.stringify( JSON.parse(rMsg)[1], undefined, 4);
-                        final_message= JSON.stringify( JSON.parse(rMsg)[JSON.parse(rMsg).length-1].content , undefined, 4);
-			console.log("final_message:",final_message);
-		        final_message2=final_message.replaceAll(/\\n/g, "<br>");
-			console.log("final_message2:",final_message2);
-                        display_obj_ai_agent_response.innerHTML  = final_message2; //final_message; //"The response is: <<placehodler tbd>>";
+			const response_messages = JSON.parse(rMsg);
+			const final_ai_message = response_messages
+				.slice()
+				.reverse()
+				.find((message) =>
+					message.type === "ai" &&
+					typeof message.content === "string" &&
+					message.content.trim() !== ""
+				);
+			display_obj_ai_agent_response.textContent =
+				final_ai_message?.content || "The agent did not return a final answer.";
 
 
 
@@ -274,4 +280,3 @@ function handleSuccess(jqXHR, funcType, nextactioncode){
 
 </body>
 </html>
-

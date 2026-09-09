@@ -21,32 +21,28 @@ import path from 'path';
 import fs from 'fs';
 const __dirname = path.dirname('.'); // get the name of the directory
 
-import { AIMessage, BaseMessage, HumanMessage } from "@langchain/core/messages";
+import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
 import { StateGraph, END,  START} from "@langchain/langgraph";
-import { MemorySaver, Annotation, MessagesAnnotation, messagesStateReducer } from "@langchain/langgraph";
+import { MessagesAnnotation } from "@langchain/langgraph";
 import { ToolNode } from "@langchain/langgraph/prebuilt";
 
-import { ChatWatsonx } from "@langchain/community/chat_models/ibm";
+import { ChatOpenAI } from "@langchain/openai";
 
 
 /////////////////////////////////
 
-//Pre configured required environment variables
+//Preconfigured environment variables
 process.env.APPLICATION_NAME="LoanRisk-AIAgent";
-process.env.WATSONX_AI_AUTH_TYPE="iam"
 process.env.IBM_IAM_TOKEN_ENDPOINT="https://iam.cloud.ibm.com/identity/token"
 
-//Set these REQUIRED environment variables as part of the deployment
-
-//REQUIRED environment variables
-//process.env.APPLICATION_PORT="8080"; //default is 8080. If using Docker, it must be same in Dockerfile.
-
-//REQUIRED environment variables when using IBM Cloud watsonx.ai platform LLMs
-//process.env.WATSONX_AI_APIKEY="xxxxxxxxxxx"
-//process.env.WATSONX_SERVICE_URL="https://us-south.ml.cloud.ibm.com" //default is us-south region
-//process.env.WATSONX_PROJECT_ID="xxx-xxx-xxx-xxx-xxx"
+//Optional local overrides
+//process.env.APPLICATION_PORT="8080";
+//process.env.APPLICATION_HOST="127.0.0.1";
+//process.env.LITELLM_BASE_URL="http://127.0.0.1:4000/v1";
+//process.env.LITELLM_API_KEY="sk-local";
+//process.env.LITELLM_MODEL="loan-risk-bedrock";
 
 //Optional - For using RAG LLM set rag llm watsonx environment variables to set in deployment
 //process.env.ENABLE_RAG_LLM = "true" //default is false. true requires WATSONX_RISK_RAG_LLM_ENDPOINT; 
@@ -63,18 +59,6 @@ process.env.IBM_IAM_TOKEN_ENDPOINT="https://iam.cloud.ibm.com/identity/token"
 //process.env.IBM_IAM_TOKEN_EXPIRATION="to be set by function"
 
 //Validate the environment variables. Set defaults when not provided.
-if (process.env.WATSONX_AI_APIKEY) {
-  console.log("Setting process.env.WATSONX_AI_APIKEY from envars:", process.env.WATSONX_AI_APIKEY);
-} else {
-  console.error("WATSONX_AI_APIKEY envar is not set.");
-}
-
-if (process.env.WATSONX_PROJECT_ID) {
-  console.log("Setting process.env.WATSONX_PROJECT_ID from envars:", process.env.WATSONX_PROJECT_ID);
-} else {
-  console.error("WATSONX_PROJECT_ID envar is not set.");
-}
-
 if (process.env.APPLICATION_PORT) {
   console.log("Setting process.env.APPLICATION_PORT from envars:", process.env.APPLICATION_PORT);
 } else {
@@ -82,22 +66,40 @@ if (process.env.APPLICATION_PORT) {
   console.log("Using default process.env.APPLICATION_PORT:", process.env.APPLICATION_PORT);
 }
 
-if (process.env.WATSONX_SERVICE_URL) {
-  console.log("Setting process.env.WATSONX_SERVICE_URL from envars:", process.env.WATSONX_SERVICE_URL);
+if (process.env.APPLICATION_HOST) {
+  console.log("Setting process.env.APPLICATION_HOST from envars:", process.env.APPLICATION_HOST);
 } else {
-  process.env.WATSONX_SERVICE_URL="https://us-south.ml.cloud.ibm.com";
-  console.log("Using default process.env.WATSONX_SERVICE_URL:", process.env.WATSONX_SERVICE_URL);
+  process.env.APPLICATION_HOST="127.0.0.1";
+  console.log("Using default process.env.APPLICATION_HOST:", process.env.APPLICATION_HOST);
+}
+
+if (process.env.LITELLM_BASE_URL) {
+  console.log("Setting process.env.LITELLM_BASE_URL from envars:", process.env.LITELLM_BASE_URL);
+} else {
+  process.env.LITELLM_BASE_URL="http://127.0.0.1:4000/v1";
+  console.log("Using default process.env.LITELLM_BASE_URL:", process.env.LITELLM_BASE_URL);
+}
+
+if (process.env.LITELLM_API_KEY) {
+  console.log("Using process.env.LITELLM_API_KEY from envars.");
+} else {
+  process.env.LITELLM_API_KEY="sk-local";
+  console.log("Using a local placeholder process.env.LITELLM_API_KEY.");
+}
+
+if (process.env.LITELLM_MODEL) {
+  console.log("Setting process.env.LITELLM_MODEL from envars:", process.env.LITELLM_MODEL);
+} else {
+  process.env.LITELLM_MODEL="loan-risk-bedrock";
+  console.log("Using default process.env.LITELLM_MODEL:", process.env.LITELLM_MODEL);
 }
 
 if (process.env.ENABLE_RAG_LLM) {
   console.log("Using process.env.ENABLE_RAG_LLM from envars:", process.env.ENABLE_RAG_LLM);
   if (process.env.ENABLE_RAG_LLM.toLowerCase()==='true') {
-    //console.log("Setting process.env.ENABLE_RAG_LLM from envars:", process.env.ENABLE_RAG_LLM);
-    console.log("Requires WATSONX_RISK_RAG_LLM_ENDPOINT from envars. Uses bearer token using WATSONX_AI_APIKEY from envars.");
-    if (process.env.WATSONX_RISK_RAG_LLM_ENDPOINT) {
-      console.log("Setting process.env.WATSONX_RISK_RAG_LLM_ENDPOINT from envars:", process.env.WATSONX_RISK_RAG_LLM_ENDPOINT);
-    } else {
-      console.error("WATSONX_RISK_RAG_LLM_ENDPOINT envar is not set.");
+    console.log("IBM-hosted RAG is enabled and requires WATSONX_RISK_RAG_LLM_ENDPOINT and WATSONX_AI_APIKEY.");
+    if (!process.env.WATSONX_RISK_RAG_LLM_ENDPOINT || !process.env.WATSONX_AI_APIKEY) {
+      throw new Error("ENABLE_RAG_LLM=true requires WATSONX_RISK_RAG_LLM_ENDPOINT and WATSONX_AI_APIKEY.");
     }
   }
 } else {
@@ -153,15 +155,12 @@ const agentic_instructions = {
   //NOTE: Also - tbd -- There are additional descriptions for the tool input argumets that impact tool use. 
   //eg schema: z.object({ customer_id: z.string().describe("Customer's id"),
 
-  model: 'watsonx-ChatWatsonx',
-  model_minTokens: 150, //not applicable to some models
-  model_maxTokens: 250,
-  model_temperature: 0.5, // 0 deterministic ie greedy mode
-  model_randomSeed: 123, // if temperature is not 0
-  model_topP: 1, //0-1 nucleus sampling. ideally not recommneded to use with temperature
-  model_topK: 25 // 1-100 lower value keeps on topic
-  //NOTE: check model details for which properties are supported by it. 
+  model_temperature: 0,
+  model_maxTokens: 500
 }
+
+const agentSystemPrompt =
+  "You are a loan-risk assistant. Use the available tools when required. After a tool returns a result, either call a different tool that is still required or answer the user using the result. Never repeat the same tool call with the same arguments.";
 
 /////////////////////////////////
 
@@ -185,30 +184,32 @@ webapp.get('/', async (req: Request, res: Response) => {
 
 //Define a route for the ai agent application graph processing
 webapp.post('/callagent', async (req: Request, res: Response) => {
+  try {
+    console.log('Received request on callagent endpoint.');
+    const input_post_body=req.body;
+    console.log('input_post_body:');
+    console.log(input_post_body);
 
-  console.log('Received request on callagent endpoint.');
-  //console.log(req.body);
-  const input_post_body=req.body;
-  //app.use(express.json()) is set in the code and so by default parse all input as JSON
-  //changes all input to json already
-  //https://expressjs.com/en/api.html#express.json
+    const query = input_post_body.query;
+    if (typeof query !== "string" || query.trim() === "") {
+      res.status(400).json({ error: "A non-empty query is required." });
+      return;
+    }
 
-  //console.log(`request body: ${input_post_body}`);
-  console.log('input_post_body:');
-  console.log(input_post_body);
+    if (process.env.ENABLE_RAG_LLM.toLowerCase() === "true") {
+      console.log("Setting IBM access token for optional hosted RAG.");
+      await get_ibm_iam_token();
+    }
 
-  const query = input_post_body.query; //"what is the overall risk for credit score 444?"     ////req.query.q; // 'hello'
+    console.log("Input query for agent: ", query);
 
-  console.log("Setting access_token.");  
-  await get_ibm_iam_token();
-
-  //Get input to the graph
-  console.log("Input query for agent: ", query);
-
-  const query_response = await runAppWithQuery(query);
-  res.send(query_response);
-
-
+    const query_response = await runAppWithQuery(query);
+    res.json(query_response);
+  } catch (error) {
+    console.error("Unable to complete agent request:", error);
+    const message = error instanceof Error ? error.message : "Unknown agent error";
+    res.status(500).json({ error: message });
+  }
 });
 
 /////////////////////////////////
@@ -515,44 +516,31 @@ const setupTools = async () => {
 ///
 
 const setupModelWithTools = async (tools: Array<any>) => {
+    console.log(`Using LiteLLM model ${process.env.LITELLM_MODEL} at ${process.env.LITELLM_BASE_URL}`);
 
+    const model = new ChatOpenAI({
+        model: process.env.LITELLM_MODEL,
+        apiKey: process.env.LITELLM_API_KEY,
+        temperature: agentic_instructions.model_temperature,
+        maxTokens: agentic_instructions.model_maxTokens,
+        maxRetries: 2,
+        configuration: {
+          baseURL: process.env.LITELLM_BASE_URL
+        }
+    });
 
-    if ( agentic_instructions.model == 'watsonx-ChatWatsonx' ) {
-    //props for meta-llama/llama-3-2-90b-vision-instruct or other models
-    console.log('Using watsonx-ChatWatsonx');
-    const props = {
-        minTokens: agentic_instructions.model_minTokens,// 150,
-        maxTokens: agentic_instructions.model_maxTokens, //250,
-        temperature: agentic_instructions.model_temperature, //0.5,
-        randomSeed: agentic_instructions.model_randomSeed //12345
+    return {
+      model,
+      modelWithTools: model.bindTools(tools)
     };
-
-
-    const modelWithTools = new ChatWatsonx({
-        watsonxAIAuthType: "iam",
-		model: "ibm/granite-4-h-small",
-		//model: "meta-llama/llama-3-2-90b-vision-instruct",
-        //model: "mistralai/mistral-large", #deprecated
-        //model: "ibm/granite-3-8b-instruct",
-        //model: "meta-llama/llama-3-1-70b-instruct",
-        //apikey: process.env.WATSONX_AI_APIKEY,
-        projectId: process.env.WATSONX_PROJECT_ID,
-        serviceUrl: process.env.WATSONX_SERVICE_URL,
-        version: '2024-05-31',
-        ...props,
-        }).bindTools(tools);
-        
-        return modelWithTools;
-    }; // end if watsonx-ChatWatsonx',
-  
-    //return modelWithTools; //returned in the block.
-
 };
 
 ///
 
-const setupApp = async (tools: Array<any>, modelWithTools) => {
+const toolCallSignature = (toolCall) =>
+  `${toolCall.name}:${JSON.stringify(toolCall.args)}`;
 
+const setupApp = async (tools: Array<any>, model, modelWithTools) => {
 
     const toolNodeForGraph = new ToolNode(tools)
     
@@ -560,10 +548,21 @@ const setupApp = async (tools: Array<any>, modelWithTools) => {
     const { messages } = state;
     const lastMessage = messages[messages.length - 1];
     //console.log("lastMessage.tool_calls?.length::::",lastMessage.tool_calls?.length);
-    if ("tool_calls" in lastMessage && Array.isArray(lastMessage.tool_calls) && lastMessage.tool_calls?.length) {
-        return "tools";
+    if (!("tool_calls" in lastMessage) || !Array.isArray(lastMessage.tool_calls) || !lastMessage.tool_calls.length) {
+        return END;
     }
-    return END;
+
+    const previousToolCalls = new Set(
+      messages
+        .slice(0, -1)
+        .flatMap((message) => Array.isArray(message.tool_calls) ? message.tool_calls : [])
+        .map(toolCallSignature)
+    );
+    const repeatedCalls = lastMessage.tool_calls.every((toolCall) =>
+      previousToolCalls.has(toolCallSignature(toolCall))
+    );
+
+    return repeatedCalls ? "finalize" : "tools";
     }
 
 
@@ -573,13 +572,25 @@ const setupApp = async (tools: Array<any>, modelWithTools) => {
         return { messages: response };
     }
 
+    const finalizeRepeatedToolCall = async (state) => {
+        const messagesWithoutRepeatedCall = state.messages.slice(0, -1);
+        const response = await model.invoke([
+          new SystemMessage(
+            "Answer the user's question using the completed tool results in this conversation. Do not request or describe another tool call."
+          ),
+          ...messagesWithoutRepeatedCall
+        ]);
+        return { messages: response };
+    }
 
     const workflow = new StateGraph(MessagesAnnotation)
     .addNode("agent", callModel)
     .addNode("tools", toolNodeForGraph)
+    .addNode("finalize", finalizeRepeatedToolCall)
     .addEdge(START, "agent")
-    .addConditionalEdges("agent", shouldContinue, ["tools", END])
-    .addEdge("tools", "agent");
+    .addConditionalEdges("agent", shouldContinue, ["tools", "finalize", END])
+    .addEdge("tools", "agent")
+    .addEdge("finalize", END);
 
     const app = workflow.compile()
 
@@ -593,9 +604,9 @@ const setupApp = async (tools: Array<any>, modelWithTools) => {
 
 const tools = await setupTools();
 
-const modelWithTools = await setupModelWithTools(tools);
+const { model, modelWithTools } = await setupModelWithTools(tools);
 
-const app = await setupApp(tools,modelWithTools);
+const app = await setupApp(tools,model,modelWithTools);
 
 /////////////////////////////////
 
@@ -606,10 +617,14 @@ const runAppWithQuery = async (query: string) => {
     const stream = await app.stream(
     {
        //messages: [{ role: "user", content: query }],
-       messages: [new HumanMessage({content: query })]
+       messages: [
+         new SystemMessage(agentSystemPrompt),
+         new HumanMessage({content: query })
+       ]
     },
     {
-        streamMode: "values"
+        streamMode: "values",
+        recursionLimit: 12
     }
     )
 
@@ -641,11 +656,10 @@ const runAppWithQuery = async (query: string) => {
 
 ////////////////////////////
 
-webapp.listen(process.env.APPLICATION_PORT, () => {
+webapp.listen(Number(process.env.APPLICATION_PORT), process.env.APPLICATION_HOST, () => {
   console.log(`Agentic AI application ${process.env.APPLICATION_NAME} is starting...`);
-  console.log(`Server is running on http://<your-server-ip>:${process.env.APPLICATION_PORT}`);
+  console.log(`Server is running on http://${process.env.APPLICATION_HOST}:${process.env.APPLICATION_PORT}`);
 });
-
 
 
 
