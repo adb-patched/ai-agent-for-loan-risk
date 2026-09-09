@@ -1,11 +1,20 @@
 {
   "name": "bank-loan-risk-ai-agent",
   "version": "0.0.1",
-  "main": "main.ts",
+  "private": true,
+  "description": "A LangGraph loan-risk demonstration using Amazon Bedrock's OpenAI-compatible Responses API.",
+  "main": "build/main.js",
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
-    "dev": "nodemon",
+    "dev": "tsx watch main.ts",
     "start": "node build/main.js",
-    "build": "tsc --project ./"
+    "build": "tsc --project tsconfig.json",
+    "typecheck": "tsc --project tsconfig.json --noEmit",
+    "test": "node --test tests/*.test.js",
+    "test:watch": "node --test --watch tests/*.test.js",
+    "check": "npm run typecheck && npm test"
   },
   "keywords": [],
   "type": "module",
@@ -20,11 +29,9 @@
     "zod": "3.25.76"
   },
   "devDependencies": {
-    "@types/express": "^5.0.0",
-    "nodemon": "^3.1.9",
-    "ts-node": "^10.9.2",
+    "@types/express": "4.17.25",
+    "@types/node": "18.19.130",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3"
-  },
-  "description": ""
+  }
 }

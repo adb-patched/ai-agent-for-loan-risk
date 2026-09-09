@@ -1,5 +1,7 @@
 # Steps for Deploying on IBM Cloud Code Engine
 
+> Historical guide: this document describes the original IBM Cloud and watsonx.ai primary-model deployment. The current application uses Amazon Bedrock by default. Follow the repository root `README.md` and `docs/configuration.md` for current setup. The IBM material remains relevant only when maintaining the optional RAG or watsonx Assistant integrations.
+
 ## Prerequisites
 
 Requires IBM Cloud account with:
@@ -71,4 +73,3 @@ By adding this feature, you can get a more conversational/chat experience when a
 - Open the watsonx Assistant Web chat configuration and note the integrationID, region and serviceInstanceID from the Embed script tab.
 - On Code Engine open the deployed application configuration, add the following environment variables with the values captured above and redeploy the application (ENABLE_WXASST=true, WXASST_INTEGRATION_ID, WXASST_REGION, WXASST_SERVICE_INSTANCE_ID captured above)
 - The watsonx Assistant will become available on the page <application-url>/wx.html
-

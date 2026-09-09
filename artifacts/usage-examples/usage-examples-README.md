@@ -1,6 +1,8 @@
 #### Usage flow:
 To use the application (and for demo), you assume the persona of a human risk analyst from a bank. You interact with the Loan Risk AI agent to assess the risk and interest rate for customers. When requested, the Loan Risk AI agent interprets the question context, uses LLMs and information about the available tools to decide the logic and sequence for completing the request, and then acts on the information to complete the request. LLMs receive the questions and natural language prompt instructions from the AI agent, but there is no hardcoded traditional programming logic for interpretation or tool sequence to find the response.
 
+> Current runtime note: Amazon Bedrock GPT-5.6 Luna is the default model. Customer lookup and default risk/rate calculations are local demo tools. See `docs/domain-and-data.md` for the exact rules and their difference from the reference policy PDFs.
+
 
 #### Example questions to ask the Loan Risk AI Agent
 Below are some examples of question to ask the Loan Risk AI Agent.

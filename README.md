@@ -1,55 +1,47 @@
-# Loan Risk - AI Agent
+# Loan Risk AI Agent
 
-This checkout calls Amazon Bedrock's OpenAI-compatible Responses API directly from the TypeScript application. Bedrock authentication uses `AWS_BEARER_TOKEN_BEDROCK`.
+A TypeScript and LangGraph proof of concept that uses Amazon Bedrock's OpenAI-compatible Responses API to answer loan-risk questions through a small set of tools.
 
-This repository provides an AI agent application for demonstration and proof-of-concept(PoC) to showcase agentic AI adoption in industry/enterprise workflows and use cases.
+The default application is a demo, not a production lending system. Customer records are synthetic and stored in code. No customer database is connected.
 
-With a focus on the financial industry, it uses a bank loan processing workflow as an example that leverages agentic AI. It demonstrates one of the main values of using agentic AI - _relying on LLMs to reason about what to do and take actions_, instead of relying on traditional approach of rules and conditions. 
+## What the application does
 
-The application runs as a local Node.js web server and uses LangChain's `ChatOpenAI` client against Amazon Bedrock. The original optional IBM-hosted RAG and watsonx Assistant integrations remain available but are disabled by default.
+- Accepts a natural-language question from the browser or `POST /callagent`.
+- Uses `us.openai.gpt-5.6-luna` on Amazon Bedrock to select and sequence tools.
+- Retrieves a synthetic customer's credit score and account status.
+- Calculates demo risk and interest-rate outcomes with deterministic local rules.
+- Optionally replaces the local risk and rate tools with a legacy IBM-hosted RAG deployment.
 
-To learn more about the key features and architectural concepts of agentic AI and about using this Loan Risk AI Agent, you can: 
+## Important rule distinction
 
-- Read the article [Agentic AI in enterprise workflow automation](https://developer.ibm.com/articles/agentic-ai-workflow-automation/).
-- Watch the 5-minute demo video [Agentic AI on IBM Cloud - Demo](https://mediacenter.ibm.com/media/Agentic+AI+on+IBM+Cloud+-+Demo+Video/1_kn6kvqmz).
+The repository contains two rule sets:
 
-For questions or feedback contact Anuj Jain (jainanuj@us.ibm.com).
+1. **Default local demo rules** in [`src/domain/loan-risk.ts`](src/domain/loan-risk.ts), which preserve the original application's behavior and are covered by automated tests.
+2. **Reference policy PDFs** in [`artifacts/data`](artifacts/data), which are intended for the optional IBM RAG path and contain different thresholds and rates.
 
-## Use Case
-+ AI agent to support bank loan risk evaluation workflow.
-+ AI agent determines overall risk and interest rate for a bank loan using LLMs and relevant tools.
+See [Domain and data](docs/domain-and-data.md) before interpreting application output.
 
-Similar use cases can be found in insurance, healthcare and other industry/enterprise workflows.
+## Quick start
 
-
-## Architecture
-+ Architecture: Single AI Agent with Tools (using LangGraph, TypeScript/NodeJS)
-+ LLM: OpenAI GPT-5.6 Luna through Amazon Bedrock's OpenAI-compatible endpoint
-+ Tools: API/functions (for credit score, account status, risk evaluation criteria, interest rate determination)
-
-#### Conceptual Architecture
-![Conceptual architecture](artifacts/architecture/LoanRisk-Single-AI-Agent-Conceptual.png)
-
-#### High-level Deployment Architecture
-![High-level deployment architecture](artifacts/architecture/LoanRisk-Single-AI-Agent-Deployment.png)
-
-
-## Deployment
-### Prerequisites
+Requirements:
 
 - Node.js 18 or newer
 - An Amazon Bedrock API key
-- Access to `us.openai.gpt-5.6-luna` in Amazon Bedrock `us-east-1`
+- Access to `us.openai.gpt-5.6-luna` in `us-east-1`
 
-### Local setup
-
-Create `.env` from the provided example and add your Bedrock API key:
+Create the local environment file:
 
 ```bash
 cp .env.example .env
 ```
 
-Install and start the Node.js application:
+Set your token in `.env`:
+
+```env
+AWS_BEARER_TOKEN_BEDROCK="your-bedrock-api-key"
+```
+
+Install, build, and start:
 
 ```bash
 npm install
@@ -57,24 +49,74 @@ npm run build
 npm start
 ```
 
-Then open `http://127.0.0.1:8080`.
+Open `http://127.0.0.1:8080`.
 
-The application loads `.env` automatically. No LiteLLM proxy, Python environment, or separate process is required.
+## Common commands
 
-### Application configuration
+```bash
+npm run dev            # Start the TypeScript entrypoint in watch mode
+npm run build          # Compile application source into build/
+npm run typecheck      # Type-check application source
+npm test               # Run deterministic tests; no Bedrock requests
+npm run test:watch     # Re-run tests while files change
+npm run check          # Type-check application source and run all tests
+```
 
-- `AWS_BEARER_TOKEN_BEDROCK`: required Bedrock API key
-- `BEDROCK_OPENAI_BASE_URL`: defaults to `https://bedrock-runtime.us-east-1.amazonaws.com/openai/v1`
-- `BEDROCK_MODEL`: defaults to `us.openai.gpt-5.6-luna`
-- `APPLICATION_HOST`: defaults to `127.0.0.1`
-- `APPLICATION_PORT`: defaults to `8080`
+## Repository structure
 
-The original IBM Cloud deployment guide remains under [artifacts/deployment](artifacts/deployment/deployment-README.md). Enabling `ENABLE_RAG_LLM=true` still requires the IBM-hosted RAG endpoint and IBM credentials described there.
+```text
+main.ts                         Application composition and server startup
+src/
+  agent/                        Prompts, tools, graph, and message normalization
+  domain/                       Synthetic customers and demo decision rules
+  http/                         Express application and API boundary
+  integrations/                 Optional IBM RAG and watsonx Assistant adapters
+tests/                          Deterministic unit and HTTP integration tests
+public/                         Browser UI and static assets
+artifacts/                      Original IBM diagrams, policies, and legacy guides
+docs/                           Current technical documentation
+```
 
+## Documentation
 
-## Usage
-For usage and additional examples refer [here.](artifacts/usage-examples/usage-examples-README.md)
+- [Documentation index](docs/README.md)
+- [Architecture and runtime flow](docs/architecture.md)
+- [Configuration](docs/configuration.md)
+- [HTTP API](docs/api.md)
+- [Domain rules and data](docs/domain-and-data.md)
+- [Testing strategy](docs/testing.md)
+- [Dependency status](docs/dependencies.md)
+- [Security and limitations](docs/security-and-limitations.md)
+- [Legacy IBM integrations](docs/legacy-integrations.md)
+- [Evaluation guide](docs/evaluation-guide.md)
 
-![Example usage screenshot](artifacts/usage-examples/UsageExample2.png)
+## API example
 
-  
+```bash
+curl http://127.0.0.1:8080/callagent \
+  -H "Content-Type: application/json" \
+  -d '{"query":"What is Matt'\''s credit score?"}'
+```
+
+The response is an ordered list of human, AI, and tool messages. Text returned by the Bedrock Responses API is normalized to a string before it crosses the HTTP boundary.
+
+## Test scope
+
+The test suite covers:
+
+- Configuration defaults and required credentials
+- Synthetic customer aliases and fallback behavior
+- Risk and interest-rate rules, including boundaries
+- LangChain tool names and RAG-mode selection
+- Repeated tool-call detection
+- Responses API content normalization
+- Express input validation and error redaction
+- IBM RAG authentication and token reuse with mocked HTTP
+
+Tests deliberately do not call Amazon Bedrock or IBM services.
+
+The current dependency line has residual advisories that require major LangChain and Express upgrades. See [Dependency status](docs/dependencies.md).
+
+## Production warning
+
+This application has no user authentication, authorization, rate limiting, persistent audit log, or real customer data source. Unknown customers receive randomized demo values. Review [Security and limitations](docs/security-and-limitations.md) before exposing it beyond a local demonstration environment.

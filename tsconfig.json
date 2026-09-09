@@ -12,7 +12,10 @@
     "strictFunctionTypes": false,
     "strictBindCallApply": false,
     "strictPropertyInitialization": false,
-    "noImplicitThis": false
+    "noImplicitThis": false,
+    "types": ["node"]
   },
-  "lib": ["esnext"]
+  "lib": ["esnext"],
+  "include": ["main.ts", "src/**/*.ts"],
+  "exclude": ["build", "node_modules", "tests"]
 }
