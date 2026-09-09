@@ -1,12 +1,12 @@
 # Loan Risk - AI Agent
 
-This checkout uses a local LiteLLM proxy to call an Amazon Bedrock model. Bedrock authentication uses `AWS_BEARER_TOKEN_BEDROCK`; the Node.js application talks only to LiteLLM's OpenAI-compatible endpoint.
+This checkout calls Amazon Bedrock's OpenAI-compatible Responses API directly from the TypeScript application. Bedrock authentication uses `AWS_BEARER_TOKEN_BEDROCK`.
 
 This repository provides an AI agent application for demonstration and proof-of-concept(PoC) to showcase agentic AI adoption in industry/enterprise workflows and use cases.
 
 With a focus on the financial industry, it uses a bank loan processing workflow as an example that leverages agentic AI. It demonstrates one of the main values of using agentic AI - _relying on LLMs to reason about what to do and take actions_, instead of relying on traditional approach of rules and conditions. 
 
-The application runs as a local Node.js web server. LiteLLM handles the upstream Bedrock request, while the original optional IBM-hosted RAG and watsonx Assistant integrations remain available but are disabled by default.
+The application runs as a local Node.js web server and uses LangChain's `ChatOpenAI` client against Amazon Bedrock. The original optional IBM-hosted RAG and watsonx Assistant integrations remain available but are disabled by default.
 
 To learn more about the key features and architectural concepts of agentic AI and about using this Loan Risk AI Agent, you can: 
 
@@ -24,7 +24,7 @@ Similar use cases can be found in insurance, healthcare and other industry/enter
 
 ## Architecture
 + Architecture: Single AI Agent with Tools (using LangGraph, TypeScript/NodeJS)
-+ LLM: Amazon Bedrock through a local LiteLLM proxy
++ LLM: OpenAI GPT-5.6 Luna through Amazon Bedrock's OpenAI-compatible endpoint
 + Tools: API/functions (for credit score, account status, risk evaluation criteria, interest rate determination)
 
 #### Conceptual Architecture
@@ -38,29 +38,18 @@ Similar use cases can be found in insurance, healthcare and other industry/enter
 ### Prerequisites
 
 - Node.js 18 or newer
-- Python and `pip`
 - An Amazon Bedrock API key
-- Access to the Bedrock model configured in `litellm-config.yaml`
+- Access to `us.openai.gpt-5.6-luna` in Amazon Bedrock `us-east-1`
 
 ### Local setup
 
-Install LiteLLM:
+Create `.env` from the provided example and add your Bedrock API key:
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install -r requirements-litellm.txt
+cp .env.example .env
 ```
 
-Set the Bedrock API key and region, then start LiteLLM:
-
-```bash
-export AWS_BEARER_TOKEN_BEDROCK="your-bedrock-api-key"
-export AWS_REGION_NAME="us-east-1"
-litellm --config litellm-config.yaml --host 127.0.0.1 --port 4000
-```
-
-In another terminal, install and start the Node.js application:
+Install and start the Node.js application:
 
 ```bash
 npm install
@@ -70,13 +59,13 @@ npm start
 
 Then open `http://127.0.0.1:8080`.
 
-The default LiteLLM alias is `loan-risk-bedrock`, backed by `bedrock/amazon.nova-pro-v1:0`. Change the model in `litellm-config.yaml` if that model is unavailable in your Bedrock account; use a model that supports tool calling.
+The application loads `.env` automatically. No LiteLLM proxy, Python environment, or separate process is required.
 
 ### Application configuration
 
-- `LITELLM_BASE_URL`: defaults to `http://127.0.0.1:4000/v1`
-- `LITELLM_MODEL`: defaults to `loan-risk-bedrock`
-- `LITELLM_API_KEY`: defaults to `sk-local`; set this when the LiteLLM proxy requires its own key
+- `AWS_BEARER_TOKEN_BEDROCK`: required Bedrock API key
+- `BEDROCK_OPENAI_BASE_URL`: defaults to `https://bedrock-runtime.us-east-1.amazonaws.com/openai/v1`
+- `BEDROCK_MODEL`: defaults to `us.openai.gpt-5.6-luna`
 - `APPLICATION_HOST`: defaults to `127.0.0.1`
 - `APPLICATION_PORT`: defaults to `8080`
 
@@ -89,4 +78,3 @@ For usage and additional examples refer [here.](artifacts/usage-examples/usage-e
 ![Example usage screenshot](artifacts/usage-examples/UsageExample2.png)
 
   
-

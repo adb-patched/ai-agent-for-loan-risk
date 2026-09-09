@@ -12,7 +12,7 @@
 <div id="maindiv" class="maindiv">
     <div class="top-container">
         <div class="top">
-            Loan Risk - AI Agent <span style="font-size: 16px;font-family:"> (LiteLLM + Amazon Bedrock) </style></span>
+            Loan Risk - AI Agent <span style="font-size: 16px;font-family:"> (Amazon Bedrock) </style></span>
         </div>
     </div>
     <div class="middle-container">
@@ -255,16 +255,29 @@ function handleSuccess(jqXHR, funcType, nextactioncode){
 			display_obj.value = JSON.stringify(JSON.parse(rMsg), undefined, 4);	
 
 			const response_messages = JSON.parse(rMsg);
+			const messageText = (content) => {
+				if (typeof content === "string") {
+					return content;
+				}
+				if (Array.isArray(content)) {
+					return content
+						.filter((block) => block?.type === "text" && typeof block.text === "string")
+						.map((block) => block.text)
+						.join("\n");
+				}
+				return "";
+			};
 			const final_ai_message = response_messages
 				.slice()
 				.reverse()
 				.find((message) =>
 					message.type === "ai" &&
-					typeof message.content === "string" &&
-					message.content.trim() !== ""
+					messageText(message.content).trim() !== ""
 				);
 			display_obj_ai_agent_response.textContent =
-				final_ai_message?.content || "The agent did not return a final answer.";
+				final_ai_message
+					? messageText(final_ai_message.content)
+					: "The agent did not return a final answer.";
 
 
 
